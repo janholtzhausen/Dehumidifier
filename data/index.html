@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Holtztech FilaDryer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    .gauge-wrapper {
+      display: flex;
+      justify-content: center;
+      gap: 50px;
+      margin-top: 30px;
+    }
+
+    .config-wrapper {
+      margin-top: 30px;
+    }
+
+    .heater-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: grey;
+      margin: 10px auto;
+    }
+
+    .heater-on {
+      background-color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>FilaDryer</h1>
+
+  <!-- Heater Indicator -->
+  <div>
+    <h3>Heater Status</h3>
+    <div id="heaterIndicator" class="heater-indicator"></div>
+  </div>
+
+  <div class="gauge-wrapper">
+    <div>
+      <h3>Humidity</h3>
+      <div id="humidityGauge" style="width: 200px; height: 200px;"></div>
+    </div>
+    <div>
+      <h3>Temperature</h3>
+      <div id="temperatureGauge" style="width: 200px; height: 200px;"></div>
+    </div>
+  </div>
+
+  <div class="config-wrapper">
+    <div>
+      <label for="configTargetTemperature">Target Temperature</label>
+      <input type="number" inputmode="numeric" name="configTargetTemperature" id="configTargetTemperature" step="1" />
+    </div>
+    <button id="save" type="button" onclick="updateConfig();">Save</button>
+  </div>
+
+  <!-- Include Local JS Files -->
+  <script src="/raphael.min.js"></script>
+  <script src="/justgage.min.js"></script>
+
+  <script>
+    // Initialize JustGage instances
+    const humidityGauge = new JustGage({
+      id: "humidityGauge",
+      value: 0,
+      min: 0,
+      max: 100,
+      title: "Humidity (%)",
+      label: "",
+    });
+
+    const temperatureGauge = new JustGage({
+      id: "temperatureGauge",
+      value: 0,
+      min: 20,
+      max: 80,
+      title: "Temperature (°C)",
+      label: "",
+    });
+
+    const heaterIndicator = document.getElementById("heaterIndicator");
+
+    // Fetch and update gauge values
+    const updateStatus = () => {
+      fetch('/status')
+        .then((res) => res.json())
+        .then((val) => {
+          // Update the gauges
+          humidityGauge.refresh(val.humidity);
+          temperatureGauge.refresh(val.temperature);
+
+          // Update heater indicator
+          if (val.heaterStatus) {
+            heaterIndicator.classList.add("heater-on");
+          } else {
+            heaterIndicator.classList.remove("heater-on");
+          }
+
+          setTimeout(updateStatus, 500); // Refresh every 500ms
+        })
+        .catch((err) => {
+          console.error("Error fetching /status:", err);
+          setTimeout(updateStatus, 500); // Retry on error
+        });
+    };
+
+    // Start the status update loop
+    updateStatus();
+
+    const updateConfig = () => {
+      const targetTemp = document.getElementById("configTargetTemperature").value;
+
+      const data = new URLSearchParams();
+      if (targetTemp) data.append("targetTemperature", targetTemp);
+
+      fetch('/config', {
+        method: 'POST',
+        body: data,
+      })
+        .then(() => {
+          alert("Config updated successfully!");
+        })
+        .catch((err) => {
+          console.error("Error updating config:", err);
+          alert("Failed to update config!");
+        });
+    };
+  </script>
+</body>
+</html>
